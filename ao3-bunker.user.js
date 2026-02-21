@@ -24,7 +24,7 @@
   const shouldHaveButton = isHomePage || isWorkPage;
   if (!shouldHaveButton) return;
 
-  const UNDO_MS = 5000;
+  const UNDO_MS = 5000; // Amount of time you have to undo when you delete something (1000 = 1 second)
 
   // ----------------------------
   // URL normalization (#2, #3)
@@ -491,7 +491,7 @@
         const title = document.createElement("a");
         title.className = "bunker-link";
         title.href = b.chapterUrl || b.url;
-        title.target = "_blank";
+        title.target = "_self";
         title.rel = "noopener noreferrer";
         title.textContent = b.title;
 
