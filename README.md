@@ -16,7 +16,7 @@ The 📦 button shows up on the homepage and on any work page.
 
 On a fic, it'll disappear as soon as you start scrolling down, then come back whenever you scroll up a little.
 
-On the homepage, it'll stay visible so you can get to your fics. (You can also go directly to `https://archiveofourown.org#bunker` to load the page with the reading list already popped up.)
+On the homepage, it'll stay visible so you can get to your fics. (You can also load any AO3 page with the reading list already popped up by adding `#bunker` to the end of the URL.)
 
 Swipe left to delete fics from your list. Swipe right to toggle read/unread, with an option to only show unread fics.
 
