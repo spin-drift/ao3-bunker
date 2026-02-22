@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AO3 Bunker
 // @namespace    http://tampermonkey.net/
-// @version      1.00
+// @version      1.0
 // @description  AO3 reading list with scroll memory (OLED, thumb-optimized, swipe on mobile, buttons on desktop)
 // @match        https://archiveofourown.org/*
 // @grant        GM_setValue
@@ -17,7 +17,7 @@
   // ============================================================
   // CONFIG -- edit these if you want to tweak behavior
   // ============================================================
-  var TITLE = 'the bunker \u{1F607}'; // Titlebar of modal
+  var TITLE = 'the bunker \u{1F607}'; // Titlebar text
   var UNDO_MS = 2500; // Time (ms) to undo a delete
   var SCROLL_SAVE_MS = 500; // Save scroll after this many ms of no scrolling
   var SCROLL_KEEP_DAYS = 30; // Expire saved positions after this many days
@@ -40,6 +40,9 @@
 
   // ----------------------------
   // URL normalization
+  // Extract a stable work ID from the path so that
+  // /works/12345, /works/12345?view_adult=true, /works/12345/chapters/6789
+  // all resolve to the same canonical URL and workId.
   // ----------------------------
   function extractWorkId(url) {
     try {
@@ -65,6 +68,10 @@
 
   // ----------------------------
   // Chapter detection
+  // AO3 multi-chapter works have a <select id="selected_id"> dropdown.
+  // The selected <option> tells us the current chapter number (by position)
+  // and the total count. Single-chapter works lack this element.
+  // Full-work view shows all chapters on one page -- no chapter to track.
   // ----------------------------
   function extractChapter() {
     if (isFullWorkView) return null;
@@ -193,8 +200,9 @@
 
   // ----------------------------
   // Pending delete state
+  // workId|url -> { expiresAt, timeoutId, finalizing }
   // ----------------------------
-  var pendingDeletes = new Map();
+  const pendingDeletes = new Map();
 
   function deleteKey(bookmark) { return bookmark.workId || bookmark.url; }
   function isPendingDelete(bookmark) { return pendingDeletes.has(deleteKey(bookmark)); }
@@ -293,12 +301,10 @@
 
   // ----------------------------
   // Scroll position tracking
-  //
   // Adapted from "Remember page scroll position" by jcunews
   // https://greasyfork.org/en/users/85671-jcunews
   // https://www.reddit.com/r/userscripts/comments/1ayfnoh/
   // ----------------------------
-
   var scrollTrackingActive = false;
   var scrollSaveTimer = null;
   var lastSavedX = null;
@@ -797,7 +803,6 @@
   // ----------------------------
   // Styles
   // ----------------------------
-
   GM_addStyle([
     '.bunker-lock-scroll { overflow: hidden !important; overscroll-behavior: none !important; }',
 
@@ -1011,6 +1016,9 @@
   // Boot
   // ----------------------------
   normalizeBookmarks();
+
+  // Update chapter tracking whenever the user visits a saved work,
+  // even if they never open the panel on this page.
   refreshIfCurrentWorkIsSaved();
   createButton();
   installScroll(btn);
