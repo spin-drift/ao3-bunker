@@ -4,6 +4,8 @@
 // @version      1.0
 // @description  AO3 reading list with scroll memory (OLED, thumb-optimized, swipe on mobile, buttons on desktop)
 // @match        https://archiveofourown.org/*
+// @updateURL    https://github.com/spin-drift/ao3-bunker/raw/refs/heads/main/ao3-bunker.user.js
+// @downloadURL  https://github.com/spin-drift/ao3-bunker/raw/refs/heads/main/ao3-bunker.user.js
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
