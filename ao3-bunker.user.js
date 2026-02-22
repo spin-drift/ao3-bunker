@@ -198,9 +198,16 @@
     return bookmarks.find(function (b) { return b.url === url; });
   }
 
+  // Open a bookmark (used by row-tap and desktop left-column click)
+  function openBookmark(bookmark) {
+    var url = bookmark.chapterUrl || bookmark.url;
+    if (!url) return;
+    location.href = url; // keep same-tab behavior for scroll memory
+  }
+
   // ----------------------------
   // Pending delete state
-  // workId|url -> { expiresAt, timeoutId, finalizing }
+  // workId|url -> { timeoutId, finalizing }
   // ----------------------------
   const pendingDeletes = new Map();
 
@@ -596,6 +603,17 @@
 
       var left = document.createElement('div');
       left.className = 'bunker-row-left';
+      left.dataset.href = (b.chapterUrl || b.url);
+
+      // Desktop: clicking left (sep/meta whitespace) should navigate too
+      left.addEventListener('click', (function (bk) {
+        return function (e) {
+          if (e.target.closest('button')) return;
+          if (e.target.closest('a')) return; // let the actual link behave normally
+          if (isPendingDelete(bk)) return;
+          openBookmark(bk);
+        };
+      })(b));
 
       // Title (link in normal state, plain text in pending)
       var titleEl;
@@ -629,7 +647,6 @@
       if (b.dateText) parts.push(b.dateText);
       var ago = timeAgo(b.savedAt);
       if (ago) parts.push(ago);
-      //if (b.readAt) parts.push('read');
       meta.textContent = parts.join(' \u00B7 ');
       if (parts.length) left.appendChild(meta);
 
@@ -640,7 +657,6 @@
       actions.className = 'bunker-actions';
 
       if (pending) {
-        // Desktop: single undo button spanning both icon button slots
         var undoBtn = document.createElement('button');
         undoBtn.className = 'bunker-iconbtn bunker-undo';
         undoBtn.type = 'button';
@@ -676,7 +692,7 @@
       content.appendChild(actions);
       row.appendChild(content);
 
-      // Swipe handlers (always installed; icon buttons hidden on touch via CSS)
+      // Swipe handlers (also provides "tap row to open" on mobile)
       installSwipeHandlers(row, b);
 
       list.appendChild(row);
@@ -684,13 +700,15 @@
   }
 
   // ----------------------------
-  // Swipe handling
+  // Swipe handling (+ tap-to-open on mobile)
   // ----------------------------
   function installSwipeHandlers(rowEl, bookmark) {
     var startX = 0, startY = 0;
     var lastX = 0, lastY = 0;
     var tracking = false;
     var locked = null;
+    var moved = false;
+
     var SWIPE_COMMIT_PX = 70;
     var LOCK_PX = 10;
 
@@ -705,6 +723,7 @@
       var t = e.touches && e.touches[0];
       if (!t) return;
       tracking = true;
+      moved = false;
       locked = null;
       startX = lastX = t.clientX;
       startY = lastY = t.clientY;
@@ -717,6 +736,7 @@
       if (!t) return;
       lastX = t.clientX;
       lastY = t.clientY;
+
       var dx = lastX - startX;
       var dy = lastY - startY;
 
@@ -726,6 +746,8 @@
         }
       }
       if (locked !== 'h') return;
+
+      moved = true;
       e.preventDefault();
 
       var clamped = Math.max(-120, Math.min(120, dx));
@@ -733,7 +755,8 @@
 
       if (clamped < 0) {
         var intensity = Math.min(Math.abs(clamped) / 120, 1);
-        rowEl.style.background = 'linear-gradient(to left, rgba(140,0,0,' + (0.10 + intensity * 0.18) + '), rgba(140,0,0,' + (0.22 + intensity * 0.34) + '))';
+        rowEl.style.background =
+          'linear-gradient(to left, rgba(140,0,0,' + (0.10 + intensity * 0.18) + '), rgba(140,0,0,' + (0.22 + intensity * 0.34) + '))';
         rowEl.style.setProperty('--fade', '1');
         rowEl.classList.remove('bunker-unread-preview');
       } else if (clamped > 0) {
@@ -754,8 +777,16 @@
     function onEnd() {
       if (!tracking) return;
       tracking = false;
+
       var dx = lastX - startX;
       var dy = lastY - startY;
+
+      // Tap-to-open on mobile (no meaningful swipe)
+      if (!moved && !isPendingDelete(bookmark)) {
+        openBookmark(bookmark);
+        return;
+      }
+
       if (Math.abs(dx) < Math.abs(dy)) { resetVisuals(); return; }
 
       if (dx > SWIPE_COMMIT_PX) {
@@ -851,10 +882,16 @@
     '  border: 1px solid rgba(255,255,255,0.10);',
     '  border-radius: 10px; margin-bottom: 8px;',
     '  background: #000; overflow: hidden; touch-action: pan-y;',
-    '  transition: background 120ms ease, opacity 200ms ease;',
+    '  transition: background 120ms ease, opacity 200ms ease, border-color 120ms ease;',
     '}',
-    '.bunker-row.bunker-pending { border-color: rgba(180,20,20,0.50); }',
+    '.bunker-row.bunker-pending, .bunker-row.bunker-pending:hover { border-color: rgba(180,20,20,0.50); }',
     '.bunker-row.bunker-finalizing { opacity: 0; }',
+
+    /* Desktop hover: subtle border tint like meta */
+    '@media (pointer: fine) {',
+    '  .bunker-row:hover { border-color: rgba(255,255,255,0.62); }',
+    '  .bunker-row-left { cursor: pointer; }',
+    '}',
 
     '.bunker-row-content {',
     '  padding: 10px;',
@@ -878,7 +915,6 @@
     '}',
     '.bunker-read .bunker-title { color: rgba(255,255,255,0.62) !important; }',
     '.bunker-unread-preview .bunker-title { color: #fff !important; }',
-    /* Pending: title turns red */
     '.bunker-pending .bunker-title { color: rgba(200,80,80,0.92) !important; }',
 
     /* Separator line */
@@ -887,7 +923,6 @@
     '  background: #fff;',
     '}',
     '.bunker-read .bunker-sep { background: rgba(255,255,255,0.08); }',
-    /* Timer: turns red and depletes left to right */
     '.bunker-sep-timer {',
     '  background: rgba(180,20,20,0.78);',
     '  transform-origin: left;',
@@ -1017,8 +1052,6 @@
   // ----------------------------
   normalizeBookmarks();
 
-  // Update chapter tracking whenever the user visits a saved work,
-  // even if they never open the panel on this page.
   refreshIfCurrentWorkIsSaved();
   createButton();
   installScroll(btn);
