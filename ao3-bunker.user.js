@@ -889,7 +889,7 @@
 
     /* Desktop hover: subtle border tint like meta */
     '@media (pointer: fine) {',
-    '  .bunker-row:hover { border-color: rgba(255,255,255,0.62); }',
+    '  .bunker-row:hover { border-color: rgba(255,255,255,0.22); }',
     '  .bunker-row-left { cursor: pointer; }',
     '}',
 
