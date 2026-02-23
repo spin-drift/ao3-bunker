@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AO3 Bunker
 // @namespace    http://tampermonkey.net/
-// @version      1.01
+// @version      1.02
 // @description  AO3 reading list with scroll memory (OLED, thumb-optimized, swipe on mobile, buttons on desktop)
 // @match        https://archiveofourown.org/*
 // @updateURL    https://github.com/spin-drift/ao3-bunker/raw/refs/heads/main/ao3-bunker.user.js
@@ -669,18 +669,21 @@
         actions.appendChild(undoBtn);
       } else {
         var readBtn = document.createElement('button');
+        var readIcon = '<svg xmlns="http://www.w3.org/2000/svg" class="ionicon" viewBox="0 0 512 512"><path d="M320 146s24.36-12-64-12a160 160 0 10160 160" fill="none" stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="32"/><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M256 58l80 80-80 80"/></svg>';
+        var unreadIcon = '<svg xmlns="http://www.w3.org/2000/svg" class="ionicon" viewBox="0 0 512 512"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M416 128L192 384l-96-96"/></svg>';
         readBtn.className = 'bunker-iconbtn';
         readBtn.type = 'button';
-        readBtn.textContent = b.readAt ? '\u21BA' : '\u2713';
+        readBtn.innerHTML = b.readAt ? readIcon : unreadIcon;
         readBtn.title = b.readAt ? 'Mark unread' : 'Mark read';
         readBtn.addEventListener('click', (function (bk) {
           return function () { toggleRead(bk); render(); };
         })(b));
 
         var delBtn = document.createElement('button');
+        var delIcon = '<svg xmlns="http://www.w3.org/2000/svg" class="ionicon" viewBox="0 0 512 512"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M368 368L144 144M368 144L144 368"/></svg>'
         delBtn.className = 'bunker-iconbtn';
         delBtn.type = 'button';
-        delBtn.textContent = '\u2715';
+        delBtn.innerHTML = delIcon;
         delBtn.title = 'Delete';
         delBtn.addEventListener('click', (function (bk) {
           return function () { requestDelete(bk); };
@@ -923,9 +926,9 @@
     '  height: 1px; margin: 4px 0;',
     '  background: #fff;',
     '}',
-    '.bunker-read .bunker-sep { background: rgba(255,255,255,0.08); }',
+    '.bunker-read .bunker-sep { background: rgba(255,255,255,0.62); }',
     '.bunker-sep-timer {',
-    '  background: rgba(180,20,20,0.78);',
+    '  background: rgba(180,20,20,0.78) !important;',
     '  transform-origin: left;',
     '  animation: bunker-timer var(--undo-ms, 5000ms) linear forwards;',
     '}',
@@ -947,6 +950,7 @@
     '@media (pointer: coarse) {',
     '  .bunker-actions .bunker-iconbtn { display: none; }',
     '}',
+    '.ionicon { width: 20px; }',
 
     '.bunker-iconbtn {',
     '  width: 34px; height: 34px; border-radius: 10px;',
