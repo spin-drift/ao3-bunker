@@ -34,8 +34,7 @@
   var SCROLL_KEY = 'ao3_bunker_scroll';
 
   var params = new URLSearchParams(location.search);
-  var isAdultGate = params.get('view_adult') === 'true';
-  var isWorkPage = /^\/works\/\d+/.test(location.pathname) && !isAdultGate;
+  var isWorkPage = /^\/works\/\d+/.test(location.pathname)
   var isHomePage = location.pathname === '/' || location.pathname === '/index';
   var isBunkerHash = location.hash === '#bunker';
   if (!(isHomePage || isWorkPage)) return;
