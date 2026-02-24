@@ -1,13 +1,11 @@
 // ==UserScript==
 // @name         AO3 Bunker
 // @namespace    http://tampermonkey.net/
-// @version      1.03
-// @description  AO3 reading list with scroll memory (OLED, thumb-optimized, swipe on mobile, buttons on desktop)
+// @version      2.1
+// @description  AO3 reading list and scroll-saver
 // @match        https://archiveofourown.org/*
 // @updateURL    https://github.com/spin-drift/ao3-bunker/raw/refs/heads/main/ao3-bunker.user.js
 // @downloadURL  https://github.com/spin-drift/ao3-bunker/raw/refs/heads/main/ao3-bunker.user.js
-// @grant        GM_setValue
-// @grant        GM_getValue
 // ==/UserScript==
 
 // big thanks to lizzie
@@ -32,37 +30,14 @@
     var PREFS_KEY = 'ao3_bunker_prefs';
     var SCROLL_KEY = 'ao3_bunker_scroll';
 
-    (function () {
-        var _hasGM = typeof GM_getValue === 'function' && typeof GM_setValue === 'function';
-
-        // Migrate any existing GM_ storage keys to localStorage on first run
-        if (_hasGM) {
-            var KEYS = [STORAGE_KEY, PREFS_KEY, SCROLL_KEY];
-            for (var i = 0; i < KEYS.length; i++) {
-                var k = KEYS[i];
-                if (localStorage.getItem(k) === null) {
-                    var existing = GM_getValue(k, null);
-                    if (existing !== null) {
-                        try { localStorage.setItem(k, JSON.stringify(existing)); } catch (e) { }
-                    }
-                }
-            }
-        }
-
-        // Temporary shim
-        GM_getValue = function (k, d) {
-            try { var v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; }
-        };
-        GM_setValue = function (k, v) {
-            try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { }
-        };
-    })();
-
     var params = new URLSearchParams(location.search);
-    var isWorkPage = /^\/works\/\d+/.test(location.pathname)
+
+    var isAdultGate = params.get('view_adult') === 'true';
+    var isWorkPage = /^\/works\/\d+/.test(location.pathname) && !isAdultGate;
     var isHomePage = location.pathname === '/' || location.pathname === '/index';
     var isBunkerHash = location.hash === '#bunker';
-    if (!(isHomePage || isWorkPage)) return;
+
+    if (!(isHomePage || isWorkPage || isAdultGate || isBunkerHash)) return;
 
     // ----------------------------
     // URL normalization
@@ -97,7 +72,7 @@
     // AO3 multi-chapter works have a <select id="selected_id"> dropdown.
     // The selected <option> tells us the current chapter number (by position)
     // and the total count. Single-chapter works lack this element.
-    // Full-work view shows all chapters on one page -- no chapter to track.
+    // Full-work view shows all chapters on one page (no chapter to track).
     // ----------------------------
     function extractChapter() {
         if (isFullWorkView) return null;
@@ -112,25 +87,38 @@
     // ----------------------------
     // Storage
     // ----------------------------
+    function LS_getValue(k, d) {
+        try { var v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; }
+    }
+    function LS_setValue(k, v) {
+        try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { }
+    }
+
     function getBookmarks() {
-        var raw = GM_getValue(STORAGE_KEY, []);
+        var raw = LS_getValue(STORAGE_KEY, []);
         return Array.isArray(raw) ? raw : [];
     }
-    function saveBookmarks(b) { GM_setValue(STORAGE_KEY, b); }
+    function saveBookmarks(b) { LS_setValue(STORAGE_KEY, b); }
 
     var DEFAULT_PREFS = { hideRead: false, keepPlace: true };
 
     function getPrefs() {
-        var stored = GM_getValue(PREFS_KEY, {});
+        var stored = LS_getValue(PREFS_KEY, {});
         return Object.assign({}, DEFAULT_PREFS, stored);
     }
-    function savePrefs(p) { GM_setValue(PREFS_KEY, p); }
+    function savePrefs(p) { LS_setValue(PREFS_KEY, p); }
 
+    var _scrollCache = null;
     function getScrollPositions() {
-        var raw = GM_getValue(SCROLL_KEY, {});
-        return (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+        if (_scrollCache) return _scrollCache;
+        var raw = LS_getValue(SCROLL_KEY, {});
+        _scrollCache = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+        return _scrollCache;
     }
-    function saveScrollPositions(s) { GM_setValue(SCROLL_KEY, s); }
+    function saveScrollPositions(s) {
+        _scrollCache = s;
+        LS_setValue(SCROLL_KEY, s);
+    }
 
     function normalizeBookmarks() {
         var b = getBookmarks();
@@ -224,11 +212,10 @@
         return bookmarks.find(function (b) { return b.url === url; });
     }
 
-    // Open a bookmark (used by row-tap and desktop left-column click)
     function openBookmark(bookmark) {
         var url = bookmark.chapterUrl || bookmark.url;
         if (!url) return;
-        location.href = url; // keep same-tab behavior for scroll memory
+        location.href = url;
     }
 
     // ----------------------------
@@ -465,12 +452,12 @@
 
     var HELP_CONTENT =
         '<p><a href="https://github.com/spin-drift/ao3-bunker/issues" target="_blank">Bugs and requests</a> \u00B7 ' +
-        '<a href="mailto:spindrift@badkitty.zone?subject=AO3%20Bunker" target="_blank">Email me</a> \u00B7 ' +
-        '<a href="https://buymeacoffee.com/spindrift" target="_blank">Donate</a>' +
+        'Love it? Please consider <a href="https://buymeacoffee.com/spindrift" target="_blank">donating!</a>' +
         '<br/>(Scroll down for usage instructions)</p>' +
         '<p><strong>Mobile:</strong> Swipe right on a row to toggle read/unread. Swipe left to delete/undo (before timer runs out).' +
         '<br/><strong>Desktop:</strong> Just use the buttons. :)' +
-        '<br/><strong>Keep place</strong> saves and restores your scroll position on fic pages.</p>' +
+        '<br/><strong>Keep place</strong> saves and restores your scroll position on fic pages.' +
+        '<br/>Add <strong style="font-family:monospace;">#bunker</strong> to the end of any AO3 URL to start with the list open.</p>' +
         '<p>Data is stored locally in your browser and never leaves your device.</p>' +
         '<p><3, spindrift</p>';
 
@@ -614,7 +601,6 @@
             scrollListToBottom();
             btn.style.opacity = '0.9';
         } else {
-            // Always reset help state when panel closes
             setHelpOpen(false);
         }
     }
@@ -640,6 +626,8 @@
 
         var bookmarks = getBookmarks();
 
+        // Gray out "Save this work" on adult gate pages and any other
+        // non-work page (home, search, user profiles, etc.) the panel might open on.
         if (!isWorkPage) {
             saveBtn.disabled = true;
             saveBtn.classList.add('bunker-disabled');
@@ -688,17 +676,15 @@
             left.className = 'bunker-row-left';
             left.dataset.href = (b.chapterUrl || b.url);
 
-            // Desktop: clicking left (sep/meta whitespace) should navigate too
             left.addEventListener('click', (function (bk) {
                 return function (e) {
                     if (e.target.closest('button')) return;
-                    if (e.target.closest('a')) return; // let the actual link behave normally
+                    if (e.target.closest('a')) return;
                     if (isPendingDelete(bk)) return;
                     openBookmark(bk);
                 };
             })(b));
 
-            // Title (link in normal state, plain text in pending)
             var titleEl;
             if (pending) {
                 titleEl = document.createElement('div');
@@ -714,13 +700,11 @@
             }
             left.appendChild(titleEl);
 
-            // Separator line (becomes animated timer in pending state)
             var sep = document.createElement('div');
             sep.className = 'bunker-sep';
             if (pending && !finalizing) sep.classList.add('bunker-sep-timer');
             left.appendChild(sep);
 
-            // Meta
             var meta = document.createElement('div');
             meta.className = 'bunker-meta';
             var parts = [];
@@ -735,7 +719,6 @@
 
             content.appendChild(left);
 
-            // Actions
             var actions = document.createElement('div');
             actions.className = 'bunker-actions';
 
@@ -762,7 +745,7 @@
                 })(b));
 
                 var delBtn = document.createElement('button');
-                var delIcon = '<svg xmlns="http://www.w3.org/2000/svg" class="ionicon" viewBox="0 0 512 512"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M368 368L144 144M368 144L144 368"/></svg>'
+                var delIcon = '<svg xmlns="http://www.w3.org/2000/svg" class="ionicon" viewBox="0 0 512 512"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M368 368L144 144M368 144L144 368"/></svg>';
                 delBtn.className = 'bunker-iconbtn';
                 delBtn.type = 'button';
                 delBtn.innerHTML = delIcon;
@@ -778,7 +761,6 @@
             content.appendChild(actions);
             row.appendChild(content);
 
-            // Swipe handlers (also provides "tap row to open" on mobile)
             installSwipeHandlers(row, b);
 
             list.appendChild(row);
@@ -786,7 +768,7 @@
     }
 
     // ----------------------------
-    // Swipe handling (+ tap-to-open on mobile)
+    // Swipe/tap handling
     // ----------------------------
     function installSwipeHandlers(rowEl, bookmark) {
         var startX = 0, startY = 0;
@@ -798,7 +780,10 @@
         var SWIPE_COMMIT_PX = 70;
         var LOCK_PX = 10;
 
+        var contentEl = rowEl.querySelector('.bunker-row-content');
+
         function resetVisuals() {
+            contentEl.classList.remove('bunker-dragging');
             rowEl.style.setProperty('--x', '0px');
             rowEl.style.setProperty('--fade', '1');
             rowEl.classList.remove('bunker-read-fading', 'bunker-unread-preview');
@@ -832,6 +817,8 @@
                 }
             }
             if (locked !== 'h') return;
+
+            contentEl.classList.add('bunker-dragging');
 
             moved = true;
             e.preventDefault();
@@ -867,8 +854,8 @@
             var dx = lastX - startX;
             var dy = lastY - startY;
 
-            // Tap-to-open on mobile (no meaningful swipe)
-            if (!moved && !isPendingDelete(bookmark)) {
+            var dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < LOCK_PX && !moved && !isPendingDelete(bookmark)) {
                 openBookmark(bookmark);
                 return;
             }
@@ -876,11 +863,9 @@
             if (Math.abs(dx) < Math.abs(dy)) { resetVisuals(); return; }
 
             if (dx > SWIPE_COMMIT_PX) {
-                // Swipe right: toggle read/unread
                 toggleRead(bookmark);
                 render();
             } else if (dx < -SWIPE_COMMIT_PX) {
-                // Swipe left: toggle delete/undo
                 if (isPendingDelete(bookmark)) { undoDelete(bookmark); }
                 else { requestDelete(bookmark); }
             }
@@ -995,9 +980,7 @@
             '  font-size: 13px; line-height: 1.55;',
             '  color: rgba(255,255,255,0.80);',
             '}',
-            '.bunker-help-content p {',
-            '  margin: 0 0 10px 0;',
-            '}',
+            '.bunker-help-content p { margin: 0 0 10px 0; }',
             '.bunker-help-content p:last-child { margin-bottom: 0; }',
             '.bunker-help-content strong { color: #fff; font-weight: 600; }',
             '.bunker-help-content a, .bunker-help-content a:visited { color: #fff; }',
@@ -1014,7 +997,7 @@
             '.bunker-row.bunker-finalizing { opacity: 0; }',
             '.bunker-row a, .bunker-row a:link, .bunker-row a:visited:hover { text-decoration: none !important; border-bottom: none; }',
 
-            /* Desktop hover: subtle border tint like meta */
+            /* Desktop hover */
             '@media (pointer: fine) {',
             '  .bunker-row:hover { border-color: rgba(255,255,255,0.22); }',
             '  .bunker-row-left { cursor: pointer; }',
@@ -1026,7 +1009,11 @@
             '  transition: transform 120ms ease;',
             '  display: flex; align-items: flex-start;',
             '  justify-content: space-between; gap: 10px;',
+            '  touch-action: pan-y;',
             '}',
+
+            /* No transition while actively dragging -- prevents jitter */
+            '.bunker-row-content.bunker-dragging { transition: none; }',
 
             '.bunker-row-left {',
             '  flex: 1; min-width: 0;',
@@ -1174,16 +1161,12 @@
             '.bunker-save.bunker-disabled { pointer-events: none; }',
         ].join('\n');
 
-        // Injection logic
         const style = document.createElement('style');
         style.textContent = css;
-
-        // Target documentElement to ensure it works at document-start
         const target = document.head || document.documentElement;
         if (target) {
             target.appendChild(style);
         } else {
-            // Fallback for extreme edge cases: wait for the DOM
             const observer = new MutationObserver(() => {
                 if (document.head || document.documentElement) {
                     (document.head || document.documentElement).appendChild(style);
