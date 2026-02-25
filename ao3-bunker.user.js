@@ -1,11 +1,10 @@
 // ==UserScript==
 // @name         AO3 Bunker
 // @namespace    http://tampermonkey.net/
-// @version      2.1
+// @version      2.11
 // @description  AO3 reading list and scroll-saver
 // @match        https://archiveofourown.org/*
-// @updateURL    https://github.com/spin-drift/ao3-bunker/raw/refs/heads/main/ao3-bunker.user.js
-// @downloadURL  https://github.com/spin-drift/ao3-bunker/raw/refs/heads/main/ao3-bunker.user.js
+// @downloadURL  https://greasyfork.org/en/scripts/567423-ao3-bunker
 // ==/UserScript==
 
 // big thanks to lizzie
@@ -21,9 +20,9 @@
     var SCROLL_SAVE_MS = 500; // Save scroll after this many ms of no scrolling
     var SCROLL_KEEP_DAYS = 30; // Expire saved positions after this many days
     var SCROLL_ANIMATE = true; // Smooth-scroll to saved position on restore
-    var SCROLL_ANIMATE_MS = 1000; // Duration (ms) of the scroll animation
-    var SCROLL_POLL_INTERVAL = 100; // ms between page-height checks before restoring
-    var SCROLL_POLL_MAX = 2000; // max ms to wait for page to be tall enough
+    var SCROLL_ANIMATE_MS = 1000; // Duration (in ms) of the scroll animation
+    var SCROLL_POLL_INTERVAL = 100; // Time (in ms) between page-height checks before restoring
+    var SCROLL_POLL_MAX = 2000; // Time (in ms) to wait for page to be tall enough
     // ============================================================
 
     var STORAGE_KEY = 'ao3_bunker';
