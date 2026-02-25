@@ -5,6 +5,7 @@
 // @description  AO3 reading list and scroll-saver
 // @match        https://archiveofourown.org/*
 // @downloadURL  https://greasyfork.org/en/scripts/567423-ao3-bunker
+// @license      MIT
 // ==/UserScript==
 
 // big thanks to lizzie
