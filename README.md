@@ -1,5 +1,7 @@
 # AO3 Bunker
 
+<img width="800" height="550" alt="yiqrm6hmejbimmi4gzcb3op53w52" src="https://github.com/user-attachments/assets/72a433c5-292f-4623-b2d8-6959bee4c4e8" />
+
 A small (but thoughtful) AO3 reading list that stays out of your way until you need it. Extremely mobile-friendly, but works on desktop too. Oh, and it also saves your scroll position.
 
 All data is stored locally in your browser and never leaves your device.
